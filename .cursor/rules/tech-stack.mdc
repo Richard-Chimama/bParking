@@ -1,0 +1,5 @@
+---
+description:we are build a secure backend for parking application that will use google map to allow user search for our parking places, pay for the parking using mobile Zambian mobile payment, register in our system using the custom authentication phoneNumber and password. When registering an account, they should verify the account using OTP. The admin should able to administrate the application. The technologies stack I want to use are Node.js express, graphql, typescript deployment will be amazon. 
+globs:
+alwaysApply: true
+---
