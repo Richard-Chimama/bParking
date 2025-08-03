@@ -7,7 +7,7 @@ import { config } from '@/config';
 import { logger } from '@/utils/logger';
 import { CustomError } from '@/middleware/errorHandler';
 import { AuthMiddleware } from '@/middleware/graphqlAuth';
-import { me } from './UserResolver/me';
+import { me as meFunction } from './UserResolver/me';
 import { Context } from '@/type';
 
 // GraphQL Types
@@ -152,7 +152,7 @@ export class UserResolver {
   @Query(() => UserType, { nullable: true })
   @UseMiddleware(AuthMiddleware)
   async me(@Ctx() ctx: Context): Promise<UserType | null> {
-    return me(ctx);
+    return meFunction(ctx);
   }
 
   @Query(() => [UserType])
@@ -445,4 +445,4 @@ export class UserResolver {
       updatedAt: user.updatedAt,
     };
   }
-} 
+}

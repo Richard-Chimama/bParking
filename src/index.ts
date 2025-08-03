@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import express from 'express';
 import { ApolloServer } from 'apollo-server-express';
 import { buildSchema } from 'type-graphql';
+import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -227,15 +228,42 @@ async function startServer() {
     const apolloServer = new ApolloServer({
       schema,
       context: ({ req }) => {
-        logger.debug('Creating GraphQL context:', {
-          hasUser: !!req.user,
-          userId: req.user?.id,
-          userEmail: req.user?.email,
-          userRole: req.user?.role
+        let user = null;
+        
+        // Extract and verify JWT token directly in GraphQL context
+        const authHeader = req.headers.authorization;
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+          const token = authHeader.substring(7);
+          try {
+            const decoded = jwt.verify(token, config.jwt.secret) as any;
+            user = {
+              id: decoded.id,
+              email: decoded.email,
+              phoneNumber: decoded.phoneNumber,
+              role: decoded.role,
+              isVerified: decoded.isVerified,
+            };
+            logger.info('GraphQL context user authenticated:', {
+              userId: user.id,
+              email: user.email,
+              role: user.role
+            });
+          } catch (jwtError: any) {
+            logger.info('Invalid JWT token in GraphQL context:', {
+              error: jwtError.message
+            });
+          }
+        }
+        
+        logger.info('Creating GraphQL context:', {
+          hasUser: !!user,
+          userId: user?.id,
+          userEmail: user?.email,
+          userRole: user?.role
         });
         
         return {
-          user: req.user,
+          user,
           req,
         };
       },
