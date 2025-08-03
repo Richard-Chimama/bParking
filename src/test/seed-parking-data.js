@@ -1,5 +1,5 @@
-const { AppDataSource } = require('./dist/database/connection');
-const { Parking } = require('./dist/entities/Parking');
+const { AppDataSource } = require('../../dist/database/connection');
+const { Parking } = require('../../dist/entities/Parking');
 
 async function seedParkingData() {
   console.log('🌱 Seeding parking data...');

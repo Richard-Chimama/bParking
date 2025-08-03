@@ -1,5 +1,5 @@
-const { ParkingResolver } = require('./dist/graphql/resolvers/ParkingResolver');
-const { AppDataSource } = require('./dist/database/connection');
+const { ParkingResolver } = require('../../dist/graphql/resolvers/ParkingResolver');
+const { AppDataSource } = require('../../dist/database/connection');
 
 async function testParkingsQuery() {
   console.log('🧪 Testing parkings GraphQL query with mock user...');
