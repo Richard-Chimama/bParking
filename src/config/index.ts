@@ -55,6 +55,16 @@ export const config = {
     secret: process.env.ZAMBIA_MOBILE_MONEY_SECRET,
   },
 
+  // Firebase
+  firebase: {
+    projectId: process.env.FIREBASE_PROJECT_ID,
+    privateKeyId: process.env.FIREBASE_PRIVATE_KEY_ID,
+    privateKey: process.env.FIREBASE_PRIVATE_KEY,
+    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+    clientId: process.env.FIREBASE_CLIENT_ID,
+    databaseUrl: process.env.FIREBASE_DATABASE_URL,
+  },
+
   // AWS
   aws: {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -101,4 +111,4 @@ export const config = {
     email: process.env.ADMIN_EMAIL || 'admin@bparking.com',
     password: process.env.ADMIN_PASSWORD || 'admin123',
   },
-} as const; 
+} as const;

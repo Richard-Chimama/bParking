@@ -19,7 +19,10 @@ import { connectDatabase } from '@/database/connection';
 import { UserResolver } from '@/graphql/resolvers/UserResolver';
 import { ParkingResolver } from '@/graphql/resolvers/ParkingResolver';
 import { PaymentResolver } from '@/graphql/resolvers/PaymentResolver';
+import { BookingResolver } from '@/graphql/resolvers/BookingResolver';
 import { AdminResolver } from '@/graphql/resolvers/AdminResolver';
+import healthRoutes from '@/routes/health';
+import { memoryMonitor } from '@/utils/memoryMonitor';
 
 // Load environment variables
 dotenv.config();
@@ -75,8 +78,11 @@ async function startServer() {
       app.use(graphqlDebugMiddleware);
     }
 
-    // Health check endpoint
-    app.get('/health', (req, res) => {
+    // Health check routes
+    app.use('/health', healthRoutes);
+    
+    // Legacy health check endpoint (for backward compatibility)
+    app.get('/health-simple', (req, res) => {
       res.status(200).json({
         status: 'OK',
         timestamp: new Date().toISOString(),
@@ -216,6 +222,7 @@ async function startServer() {
         UserResolver,
         ParkingResolver,
         PaymentResolver,
+        BookingResolver,
         AdminResolver,
       ],
       validate: false,
@@ -264,7 +271,13 @@ async function startServer() {
         
         return {
           user,
-          req,
+          // Only include specific properties from req to avoid circular references
+          requestInfo: {
+            headers: req.headers,
+            method: req.method,
+            url: req.url,
+            ip: req.ip,
+          },
         };
       },
       introspection: config.nodeEnv === 'development',
@@ -306,6 +319,10 @@ async function startServer() {
 
     // Error handling middleware
     app.use(errorHandler);
+
+    // Start memory monitoring
+    memoryMonitor.startMonitoring(60000); // Monitor every minute
+    logger.info('🧠 Memory monitoring started');
 
     // Start server
     const port = config.port;

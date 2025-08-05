@@ -1,11 +1,14 @@
-import { Resolver, Query, Mutation, Arg, Ctx, UseMiddleware } from 'type-graphql';
+import { Resolver, Query, Mutation, Arg, Ctx, UseMiddleware, FieldResolver, Root, Int } from 'type-graphql';
 import { ObjectType, Field, InputType } from 'type-graphql';
-import { Parking } from '@/entities/Parking';
-import { AppDataSource } from '@/database/connection';
-import { AuthMiddleware, OptionalAuthMiddleware, VerifiedUserMiddleware } from '@/middleware/graphqlAuth';
-import { logger } from '@/utils/logger';
+import { Parking } from '../../entities/Parking';
+import { Booking } from '../../entities/Booking';
+import { AppDataSource } from '../../database/connection';
+import { AuthMiddleware, OptionalAuthMiddleware, VerifiedUserMiddleware } from '../../middleware/graphqlAuth';
+import { logger } from '../../utils/logger';
+import { Between, MoreThanOrEqual, LessThanOrEqual } from 'typeorm';
+import { ParkingType, ParkingAddressType } from '../types/shared';
 
-// Placeholder types - will be expanded later
+// GraphQL Types
 @ObjectType()
 class ParkingResponse {
   @Field()
@@ -16,45 +19,51 @@ class ParkingResponse {
 }
 
 @ObjectType()
-class ParkingAddressType {
-  @Field()
-  street!: string;
+class SpaceAvailabilityType {
+  @Field(() => String)
+  spaceId!: string;
 
-  @Field()
-  city!: string;
+  @Field(() => Boolean)
+  isAvailable!: boolean;
 
-  @Field()
-  state!: string;
+  @Field(() => String, { nullable: true })
+  bookedUntil?: string;
 
-  @Field()
-  zipCode!: string;
-
-  @Field()
-  country!: string;
+  @Field(() => String, { nullable: true })
+  nextAvailableTime?: string;
 }
 
 @ObjectType()
-class ParkingType {
+class ParkingAvailabilityType {
   @Field()
-  id!: string;
+  parkingId!: string;
 
-  @Field()
-  name!: string;
-
-  @Field()
-  description!: string;
-
-  @Field()
+  @Field(() => Int)
   totalSpaces!: number;
 
-  @Field()
+  @Field(() => Int)
   availableSpaces!: number;
 
-  @Field(() => [Number])
-  coordinates!: number[];
+  @Field(() => [SpaceAvailabilityType])
+  spaces!: SpaceAvailabilityType[];
 
-  @Field(() => ParkingAddressType)
-  address!: ParkingAddressType;
+  @Field(() => Boolean)
+  hasAvailability!: boolean;
+}
+
+@InputType()
+class CheckAvailabilityInput {
+  @Field()
+  parkingId!: string;
+
+  @Field()
+  startTime!: string;
+
+  @Field()
+  endTime!: string;
+
+  @Field(() => Int, { nullable: true })
+  requiredSpaces?: number;
 }
 
 @InputType()
@@ -79,8 +88,45 @@ interface Context {
   };
 }
 
-@Resolver()
+@Resolver(() => ParkingType)
 export class ParkingResolver {
+  // Field Resolvers
+  @FieldResolver(() => [String])
+  async availableSpaceIds(@Root() parking: ParkingType): Promise<string[]> {
+    const bookingRepository = AppDataSource.getRepository(Booking);
+    const now = new Date();
+    
+    // Get all currently booked spaces
+    const bookedSpaces = await bookingRepository
+      .createQueryBuilder('booking')
+      .select('booking.spaceId')
+      .where('booking.parkingId = :parkingId', { parkingId: parking.id })
+      .andWhere('booking.status IN (:...statuses)', { statuses: ['confirmed', 'checked_in'] })
+      .andWhere('booking.startTime <= :now', { now })
+      .andWhere('booking.endTime > :now', { now })
+      .getRawMany();
+    
+    const bookedSpaceIds = bookedSpaces.map((space: any) => space.booking_spaceId);
+    
+    // Generate available space IDs (1 to totalSpaces minus booked ones)
+    const allSpaceIds = Array.from({ length: parking.totalSpaces }, (_, i) => (i + 1).toString());
+    return allSpaceIds.filter(spaceId => !bookedSpaceIds.includes(spaceId));
+  }
+
+  @FieldResolver(() => Number)
+  async hourlyRate(@Root() parking: ParkingType): Promise<number> {
+    const parkingRepository = AppDataSource.getRepository(Parking);
+    const fullParking = await parkingRepository.findOneBy({ id: parking.id });
+    return fullParking?.pricing?.hourly || 0;
+  }
+
+  @FieldResolver(() => Number)
+  async dailyRate(@Root() parking: ParkingType): Promise<number> {
+    const parkingRepository = AppDataSource.getRepository(Parking);
+    const fullParking = await parkingRepository.findOneBy({ id: parking.id });
+    return fullParking?.pricing?.daily || 0;
+  }
+  // Queries
   @Query(() => [ParkingType], { nullable: true })
   @UseMiddleware(OptionalAuthMiddleware)
   async parkings(@Ctx() ctx: Context): Promise<ParkingType[] | null> {
@@ -252,6 +298,135 @@ export class ParkingResolver {
     }
   }
 
+  @Query(() => ParkingAvailabilityType)
+  @UseMiddleware(AuthMiddleware)
+  async checkParkingAvailability(@Arg('input') input: CheckAvailabilityInput): Promise<ParkingAvailabilityType> {
+    const bookingRepository = AppDataSource.getRepository(Booking);
+    const parkingRepository = AppDataSource.getRepository(Parking);
+
+    try {
+      // Validate parking exists
+      const parking = await parkingRepository.findOneBy({ id: input.parkingId });
+      if (!parking) {
+        throw new Error('Parking not found');
+      }
+
+      const startTime = new Date(input.startTime);
+      const endTime = new Date(input.endTime);
+
+      // Get all bookings that overlap with the requested time range
+      const overlappingBookings = await bookingRepository
+        .createQueryBuilder('booking')
+        .where('booking.parkingId = :parkingId', { parkingId: input.parkingId })
+        .andWhere('booking.status IN (:...statuses)', { statuses: ['confirmed', 'checked_in'] })
+        .andWhere(
+          '(booking.startTime < :endTime AND booking.endTime > :startTime)',
+          { startTime, endTime }
+        )
+        .getMany();
+
+      const bookedSpaceIds = overlappingBookings.map((booking: Booking) => booking.spaceId);
+      const allSpaceIds = Array.from({ length: parking.totalSpaces }, (_, i) => (i + 1).toString());
+      const availableSpaceIds = allSpaceIds.filter(spaceId => !bookedSpaceIds.includes(spaceId));
+
+      // Generate space availability details
+      const spaces: SpaceAvailabilityType[] = allSpaceIds.map(spaceId => {
+        const isAvailable = !bookedSpaceIds.includes(spaceId);
+        let bookedUntil: string | undefined;
+        let nextAvailableTime: string | undefined;
+
+        if (!isAvailable) {
+          const booking = overlappingBookings.find((b: Booking) => b.spaceId === spaceId);
+          if (booking) {
+            bookedUntil = booking.endTime.toISOString();
+            nextAvailableTime = booking.endTime.toISOString();
+          }
+        }
+
+        return {
+          spaceId,
+          isAvailable,
+          bookedUntil,
+          nextAvailableTime
+        };
+      });
+
+      const requiredSpaces = input.requiredSpaces || 1;
+      const hasAvailability = availableSpaceIds.length >= requiredSpaces;
+
+      return {
+        parkingId: input.parkingId,
+        totalSpaces: parking.totalSpaces,
+        availableSpaces: availableSpaceIds.length,
+        spaces,
+        hasAvailability
+      };
+    } catch (error) {
+      logger.error('Error checking parking availability:', error);
+      throw error;
+    }
+  }
+
+  @Query(() => [ParkingType])
+  @UseMiddleware(AuthMiddleware)
+  async availableParkings(
+    @Arg('startTime') startTime: string,
+    @Arg('endTime') endTime: string,
+    @Arg('latitude', { nullable: true }) latitude?: number,
+    @Arg('longitude', { nullable: true }) longitude?: number,
+    @Arg('maxDistance', { defaultValue: 10000 }) maxDistance: number = 10000
+  ): Promise<ParkingType[]> {
+    const parkingRepository = AppDataSource.getRepository(Parking);
+    const bookingRepository = AppDataSource.getRepository(Booking);
+
+    try {
+      const start = new Date(startTime);
+      const end = new Date(endTime);
+
+      // Get all active parkings
+      let parkingsQuery = parkingRepository
+        .createQueryBuilder('parking')
+        .where('parking.isActive = :isActive', { isActive: true })
+        .andWhere('parking.isVerified = :isVerified', { isVerified: true });
+
+      // Add location filter if coordinates provided
+      if (latitude && longitude) {
+        parkingsQuery = parkingsQuery
+          .andWhere(
+            'ST_DWithin(parking.location, ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326), :maxDistance)',
+            { latitude, longitude, maxDistance }
+          );
+      }
+
+      const parkings = await parkingsQuery.getMany();
+
+      // Filter parkings that have availability
+      const availableParkings: Parking[] = [];
+
+      for (const parking of parkings) {
+        const overlappingBookings = await bookingRepository
+          .createQueryBuilder('booking')
+          .where('booking.parkingId = :parkingId', { parkingId: parking.id })
+          .andWhere('booking.status IN (:...statuses)', { statuses: ['confirmed', 'checked_in'] })
+          .andWhere(
+            '(booking.startTime < :endTime AND booking.endTime > :startTime)',
+            { startTime: start, endTime: end }
+          )
+          .getCount();
+
+        if (overlappingBookings < parking.totalSpaces) {
+          availableParkings.push(parking);
+        }
+      }
+
+      return availableParkings.map(parking => this.mapParkingToType(parking));
+    } catch (error) {
+      logger.error('Error fetching available parkings:', error);
+      throw error;
+    }
+  }
+
+  // Mutations
   @Mutation(() => ParkingResponse)
   @UseMiddleware(VerifiedUserMiddleware)
   async createParking(@Arg('input') input: CreateParkingInput, @Ctx() ctx: Context): Promise<ParkingResponse> {
@@ -321,10 +496,20 @@ export class ParkingResolver {
       id: parking.id,
       name: parking.name,
       description: parking.description,
+      fullAddress: parking.fullAddress,
       totalSpaces: parking.totalSpaces,
       availableSpaces: parking.availableSpaces,
       coordinates: coordinates,
       address: parking.address,
+      hourlyRate: parking.pricing?.hourly || 0,
+      dailyRate: parking.pricing?.daily || 0,
+      currency: parking.pricing?.currency || 'USD',
+      isActive: parking.isActive,
+      isVerified: parking.isVerified,
+      rating: parking.rating || 0,
+      totalReviews: parking.totalReviews || 0,
+      createdAt: parking.createdAt,
+      updatedAt: parking.updatedAt
     };
   }
-} 
+}

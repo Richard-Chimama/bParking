@@ -9,85 +9,10 @@ import { CustomError } from '@/middleware/errorHandler';
 import { AuthMiddleware } from '@/middleware/graphqlAuth';
 import { me as meFunction } from './UserResolver/me';
 import { Context } from '@/type';
+import { CacheUser, CacheUserByEmail, InvalidateUserCache } from '@/decorators/cache';
+import { UserType, AddressType, PreferencesType } from '../types/shared';
 
 // GraphQL Types
-@ObjectType()
-class AddressType {
-  @Field()
-  street!: string;
-
-  @Field()
-  city!: string;
-
-  @Field()
-  state!: string;
-
-  @Field()
-  zipCode!: string;
-
-  @Field()
-  country!: string;
-}
-
-@ObjectType()
-class PreferencesType {
-  @Field()
-  notifications!: boolean;
-
-  @Field()
-  emailNotifications!: boolean;
-
-  @Field()
-  smsNotifications!: boolean;
-}
-
-@ObjectType()
-class UserType {
-  @Field()
-  id!: string;
-
-  @Field()
-  firstName!: string;
-
-  @Field()
-  lastName!: string;
-
-  @Field()
-  email!: string;
-
-  @Field()
-  phoneNumber!: string;
-
-  @Field()
-  role!: string;
-
-  @Field()
-  isVerified!: boolean;
-
-  @Field()
-  isActive!: boolean;
-
-  @Field({ nullable: true })
-  profilePicture?: string;
-
-  @Field({ nullable: true })
-  dateOfBirth?: Date;
-
-  @Field(() => AddressType, { nullable: true })
-  address?: AddressType;
-
-  @Field(() => PreferencesType, { nullable: true })
-  preferences?: PreferencesType;
-
-  @Field({ nullable: true })
-  lastLoginAt?: Date;
-
-  @Field()
-  createdAt!: Date;
-
-  @Field()
-  updatedAt!: Date;
-}
 
 @ObjectType()
 class UserResponse {
@@ -151,6 +76,7 @@ class ResendOTPInput {
 export class UserResolver {
   @Query(() => UserType, { nullable: true })
   @UseMiddleware(AuthMiddleware)
+  @CacheUser(1800) // Cache for 30 minutes
   async me(@Ctx() ctx: Context): Promise<UserType | null> {
     return meFunction(ctx);
   }
@@ -179,6 +105,7 @@ export class UserResolver {
   }
 
   @Mutation(() => UserResponse)
+  @InvalidateUserCache // Clear user cache when new user registers
   async register(@Arg('input') input: RegisterInput): Promise<UserResponse> {
     try {
       // Validate input
@@ -327,6 +254,7 @@ export class UserResolver {
   }
 
   @Mutation(() => UserResponse)
+  @InvalidateUserCache // Clear user cache when user is verified
   async verifyOTP(@Arg('input') input: VerifyOTPInput): Promise<UserResponse> {
     try {
       const userRepository = AppDataSource.getRepository(User);

@@ -39,4 +39,10 @@ export interface AddressType {
       role: string;
       isVerified: boolean;
     };
+    requestInfo?: {
+      headers: any;
+      method: string;
+      url: string;
+      ip: string;
+    };
   }

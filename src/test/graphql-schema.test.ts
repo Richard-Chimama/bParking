@@ -3,6 +3,7 @@ import { ParkingResolver } from '@/graphql/resolvers/ParkingResolver';
 import { UserResolver } from '@/graphql/resolvers/UserResolver';
 import { AdminResolver } from '@/graphql/resolvers/AdminResolver';
 import { PaymentResolver } from '@/graphql/resolvers/PaymentResolver';
+import { BookingResolver } from '@/graphql/resolvers/BookingResolver';
 
 describe('GraphQL Schema', () => {
   it('should build schema without naming conflicts', async () => {
@@ -13,6 +14,7 @@ describe('GraphQL Schema', () => {
           UserResolver,
           AdminResolver,
           PaymentResolver,
+          BookingResolver,
         ],
         validate: false,
       });
@@ -55,4 +57,4 @@ describe('GraphQL Schema', () => {
     expect(fields.coordinates).toBeDefined();
     expect(fields.address).toBeDefined();
   });
-}); 
+});
