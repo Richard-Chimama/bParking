@@ -79,6 +79,60 @@ export class UserType {
 }
 
 @ObjectType()
+export class WaitlistType {
+  @Field()
+  id!: string;
+
+  @Field()
+  userId!: string;
+
+  @Field()
+  parkingId!: string;
+
+  @Field()
+  status!: string;
+
+  @Field()
+  position!: number;
+
+  @Field()
+  desiredStartTime!: Date;
+
+  @Field()
+  desiredEndTime!: Date;
+
+  @Field()
+  requiredSpaces!: number;
+
+  @Field({ nullable: true })
+  vehicleInfo?: string;
+
+  @Field({ nullable: true })
+  specialRequests?: string;
+
+  @Field({ nullable: true })
+  notifiedAt?: Date;
+
+  @Field({ nullable: true })
+  expiresAt?: Date;
+
+  @Field({ nullable: true })
+  convertedAt?: Date;
+
+  @Field({ nullable: true })
+  convertedBookingId?: string;
+
+  @Field({ nullable: true })
+  notificationHistory?: string;
+
+  @Field()
+  createdAt!: Date;
+
+  @Field()
+  updatedAt!: Date;
+}
+
+@ObjectType()
 export class VehicleInfoType {
   @Field()
   licensePlate!: string;
@@ -95,6 +149,80 @@ export class VehicleInfoType {
   @Field({ nullable: true })
   model?: string;
 }
+
+@ObjectType()
+export class RecurringBookingType {
+  @Field()
+  id!: string;
+
+  @Field()
+  userId!: string;
+
+  @Field()
+  parkingId!: string;
+
+  @Field()
+  pattern!: string;
+
+  @Field()
+  status!: string;
+
+  @Field()
+  startTime!: string;
+
+  @Field()
+  endTime!: string;
+
+  @Field()
+  duration!: number;
+
+  @Field()
+  startDate!: Date;
+
+  @Field({ nullable: true })
+  endDate?: Date;
+
+  @Field()
+  nextBookingDate!: Date;
+
+  @Field({ nullable: true })
+  maxOccurrences?: number;
+
+  @Field()
+  completedOccurrences!: number;
+
+  @Field(() => VehicleInfoType, { nullable: true })
+  vehicleInfo?: VehicleInfoType;
+
+  @Field({ nullable: true })
+  specialRequests?: string;
+
+  @Field()
+  basePrice!: number;
+
+  @Field()
+  currency!: string;
+
+  @Field()
+  autoPayment!: boolean;
+
+  @Field({ nullable: true })
+  lastBookingCreated?: Date;
+
+  @Field({ nullable: true })
+  pausedAt?: Date;
+
+  @Field({ nullable: true })
+  pauseReason?: string;
+
+  @Field()
+  createdAt!: Date;
+
+  @Field()
+  updatedAt!: Date;
+}
+
+
 
 @ObjectType()
 export class BookingType {
@@ -196,6 +324,132 @@ export class PaymentType {
 
   @Field()
   updatedAt!: Date;
+}
+
+@ObjectType()
+export class NotificationHistoryType {
+  @Field()
+  sentAt!: Date;
+
+  @Field()
+  type!: string;
+
+  @Field()
+  message!: string;
+}
+
+@ObjectType()
+export class NotificationType {
+  @Field()
+  id!: string;
+
+  @Field()
+  userId!: string;
+
+  @Field()
+  type!: string;
+
+  @Field()
+  status!: string;
+
+  @Field()
+  channel!: string;
+
+  @Field()
+  title!: string;
+
+  @Field()
+  message!: string;
+
+  @Field({ nullable: true })
+  data?: string;
+
+  @Field({ nullable: true })
+  imageUrl?: string;
+
+  @Field({ nullable: true })
+  actionUrl?: string;
+
+  @Field({ nullable: true })
+  actionText?: string;
+
+  @Field({ nullable: true })
+  scheduledFor?: Date;
+
+  @Field({ nullable: true })
+  sentAt?: Date;
+
+  @Field({ nullable: true })
+  deliveredAt?: Date;
+
+  @Field({ nullable: true })
+  readAt?: Date;
+
+  @Field({ nullable: true })
+  expiresAt?: Date;
+
+  @Field()
+  retryCount!: number;
+
+  @Field()
+  maxRetries!: number;
+
+  @Field({ nullable: true })
+  nextRetryAt?: Date;
+
+  @Field({ nullable: true })
+  failureReason?: string;
+
+  @Field()
+  createdAt!: Date;
+
+  @Field()
+  updatedAt!: Date;
+}
+
+@ObjectType()
+export class NotificationPreferencesType {
+  @Field()
+  notifications!: boolean;
+
+  @Field()
+  emailNotifications!: boolean;
+
+  @Field()
+  smsNotifications!: boolean;
+
+  @Field()
+  push!: boolean;
+
+  @Field()
+  email!: boolean;
+
+  @Field()
+  sms!: boolean;
+
+  @Field()
+  bookingReminders!: boolean;
+
+  @Field()
+  payment!: boolean;
+
+  @Field()
+  waitlist!: boolean;
+
+  @Field()
+  marketing!: boolean;
+}
+
+@ObjectType()
+export class NotificationStatsType {
+  @Field()
+  type!: string;
+
+  @Field()
+  status!: string;
+
+  @Field()
+  count!: number;
 }
 
 @ObjectType()

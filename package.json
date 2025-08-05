@@ -14,9 +14,9 @@
     "format": "prettier --write src/**/*.ts",
     "type-check": "tsc --noEmit",
     "clean": "rm -rf dist",
-    "db:migrate": "typeorm-ts-node-commonjs migration:run -d src/database/connection.ts --require tsconfig-paths/register",
-    "db:migrate:revert": "typeorm-ts-node-commonjs migration:revert -d src/database/connection.ts --require tsconfig-paths/register",
-    "db:migrate:generate": "typeorm-ts-node-commonjs migration:generate -d src/database/connection.ts --require tsconfig-paths/register",
+    "db:migrate": "typeorm-ts-node-commonjs migration:run -d src/database/connection.ts",
+    "db:migrate:revert": "typeorm-ts-node-commonjs migration:revert -d src/database/connection.ts",
+    "db:migrate:generate": "typeorm-ts-node-commonjs migration:generate -d src/database/connection.ts",
     "db:seed": "npm run build && node dist/database/seed.js",
     "db:seed:dev": "ts-node -r tsconfig-paths/register src/database/seeds/seedData.ts",
     "db:seed:fresh": "npm run db:seed:dev"

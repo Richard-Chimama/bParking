@@ -1,5 +1,6 @@
 import 'reflect-metadata';
 import express from 'express';
+import { createServer } from 'http';
 import { ApolloServer } from 'apollo-server-express';
 import { buildSchema } from 'type-graphql';
 import jwt from 'jsonwebtoken';
@@ -21,19 +22,40 @@ import { ParkingResolver } from '@/graphql/resolvers/ParkingResolver';
 import { PaymentResolver } from '@/graphql/resolvers/PaymentResolver';
 import { BookingResolver } from '@/graphql/resolvers/BookingResolver';
 import { AdminResolver } from '@/graphql/resolvers/AdminResolver';
+import { WaitlistResolver } from '@/graphql/resolvers/WaitlistResolver';
+import { RecurringBookingResolver } from '@/graphql/resolvers/RecurringBookingResolver';
+import { NotificationResolver } from '@/graphql/resolvers/NotificationResolver';
 import healthRoutes from '@/routes/health';
 import { memoryMonitor } from '@/utils/memoryMonitor';
+import WebSocketService from '@/services/websocket';
+import NotificationService from '@/services/notification';
+import SchedulerService from '@/services/scheduler';
+import '@/config/firebase';
 
 // Load environment variables
 dotenv.config();
 
 async function startServer() {
   try {
+    // Initialize Firebase (imported automatically)
+    logger.info('Firebase initialized successfully');
+
     // Connect to database
     await connectDatabase();
+    logger.info('Database connected successfully');
 
-    // Create Express app
+    // Create Express app and HTTP server
     const app = express();
+    const httpServer = createServer(app);
+
+    // Initialize services
+    const notificationService = new NotificationService();
+    const webSocketService = new WebSocketService(httpServer);
+    const schedulerService = new SchedulerService(notificationService, webSocketService);
+
+    // Start scheduler
+    schedulerService.start();
+    logger.info('Scheduler service started');
 
     // Security middleware
     app.use(helmet());
@@ -224,6 +246,9 @@ async function startServer() {
         PaymentResolver,
         BookingResolver,
         AdminResolver,
+        WaitlistResolver,
+        RecurringBookingResolver,
+        NotificationResolver,
       ],
       validate: false,
       authChecker: ({ context }) => {
@@ -278,6 +303,9 @@ async function startServer() {
             url: req.url,
             ip: req.ip,
           },
+          // Add services to context
+          notificationService,
+          webSocketService,
         };
       },
       introspection: config.nodeEnv === 'development',
@@ -326,12 +354,32 @@ async function startServer() {
 
     // Start server
     const port = config.port;
-    app.listen(port, () => {
+    httpServer.listen(port, () => {
       logger.info(`🚀 Server running on port ${port}`);
       logger.info(`📊 GraphQL endpoint: http://localhost:${port}/graphql`);
       logger.info(`🧪 GraphQL Test Page: http://localhost:${port}/test`);
       logger.info(`🔍 Custom Playground: http://localhost:${port}/playground`);
       logger.info(`🏥 Health check: http://localhost:${port}/health`);
+      logger.info(`🔌 WebSocket server ready at ws://localhost:${port}`);
+    });
+
+    // Graceful shutdown
+    process.on('SIGTERM', () => {
+      logger.info('SIGTERM received, shutting down gracefully');
+      schedulerService.stop();
+      httpServer.close(() => {
+        logger.info('Server closed');
+        process.exit(0);
+      });
+    });
+
+    process.on('SIGINT', () => {
+      logger.info('SIGINT received, shutting down gracefully');
+      schedulerService.stop();
+      httpServer.close(() => {
+        logger.info('Server closed');
+        process.exit(0);
+      });
     });
   } catch (error) {
     logger.error('Failed to start server:', error);

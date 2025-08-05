@@ -3,11 +3,17 @@ import { config } from './index';
 
 // Initialize Firebase Admin SDK
 if (!admin.apps.length) {
+  // Clean and format the private key properly
+  const privateKey = config.firebase.privateKey
+    ?.replace(/\\n/g, '\n')
+    ?.replace(/"/g, '')
+    ?.trim();
+
   const serviceAccount = {
     type: 'service_account',
     project_id: config.firebase.projectId,
     private_key_id: config.firebase.privateKeyId,
-    private_key: config.firebase.privateKey?.replace(/\\n/g, '\n'),
+    private_key: privateKey,
     client_email: config.firebase.clientEmail,
     client_id: config.firebase.clientId,
     auth_uri: 'https://accounts.google.com/o/oauth2/auth',
@@ -22,6 +28,7 @@ if (!admin.apps.length) {
   });
 }
 
+// Firebase exports
 export const firebaseAuth = admin.auth();
 export const firebaseMessaging = admin.messaging();
 export const firebaseDb = admin.firestore();

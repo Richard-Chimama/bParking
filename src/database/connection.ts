@@ -9,6 +9,9 @@ import { User } from '../entities/User';
 import { Parking } from '../entities/Parking';
 import { Booking } from '../entities/Booking';
 import { Payment } from '../entities/Payment';
+import { Waitlist } from '../entities/Waitlist';
+import { RecurringBooking } from '../entities/RecurringBooking';
+import { Notification } from '../entities/Notification';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -19,7 +22,7 @@ export const AppDataSource = new DataSource({
   database: config.database.name,
   synchronize: config.nodeEnv === 'development', // Auto-sync schema in development
   logging: config.nodeEnv === 'development',
-  entities: [User, Parking, Booking, Payment],
+  entities: [User, Parking, Booking, Payment, Waitlist, RecurringBooking, Notification],
   migrations: ['src/database/migrations/*.ts'],
   subscribers: ['src/database/subscribers/*.ts'],
   ssl: config.nodeEnv === 'production' ? { rejectUnauthorized: false } : false,

@@ -82,6 +82,9 @@ export class User {
   };
 
   @Column({ nullable: true })
+  fcmToken?: string;
+
+  @Column({ nullable: true })
   lastLoginAt?: Date;
 
   @Column({ default: 0 })
@@ -150,4 +153,4 @@ export class User {
     this.lockUntil = undefined;
     this.lastLoginAt = new Date();
   }
-} 
+}
